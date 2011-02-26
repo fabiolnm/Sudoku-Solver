@@ -15,6 +15,7 @@ import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Grid;
 import com.google.gwt.user.client.ui.HTMLTable.CellFormatter;
+import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.TextBox;
@@ -44,20 +45,23 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 		SETUP, PLAYING, GUESSING
 	}
 	private GameState gameState = GameState.SETUP;
+	private Button cpuButton, mainButton;
 	
 	Sudoku() {
 		highlightBorders();
 		createWidgets();
-		init();
-		scanner.init(Games.normal);
+		scanner.init(Games.empty);
 	}
 
 	@Override
 	public void onModuleLoad() {
-		RootPanel.get().add(grid);
+		HorizontalPanel hp = new HorizontalPanel();
+		hp.add(grid);
+		hp.add(gamesMenu());
+		RootPanel.get().add(hp);
 		
-		final Button b = new Button("Start");
-		b.addClickHandler(new ClickHandler() {
+		mainButton = new Button("Start");
+		mainButton.addClickHandler(new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
 				if (gameState==GameState.SETUP) {
@@ -67,14 +71,14 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 								boxes[i][j].setEnabled(false);
 
 					gameState = GameState.PLAYING;
-					b.setText("Click to start Guessing");
-					RootPanel.get().add(cpuButton());
+					mainButton.setText("Click to start Guessing");
+					RootPanel.get().add(cpuButton);
 				} else if (gameState==GameState.PLAYING) {
 					gameState = GameState.GUESSING;
-					b.setText("Stop Guessing");
+					mainButton.setText("Stop Guessing");
 				} else {
 					gameState = GameState.PLAYING;
-					b.setText("Start Guessing");
+					mainButton.setText("Start Guessing");
 					
 					for (int i=0; i<9; i++) {
 						for (int j=0; j<9; j++) {
@@ -87,20 +91,61 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 				}
 			}
 		});
-		RootPanel.get().add(b);
+		RootPanel.get().add(mainButton);
 	}
 
-	private void init() {
+	private Widget gamesMenu() {
+		VerticalPanel menu = new VerticalPanel();
+		Button clean = new Button("Clear"),
+			easy = new Button("Easy"), 
+			normal = new Button("Normal"), 
+			hard = new Button("Hard");
+		
+		class Handler implements ClickHandler {
+			private String[][] gameData;
+			
+			Handler(String[][] gameData) {
+				this.gameData = gameData;
+			}
+			
+			@Override
+			public void onClick(ClickEvent event) {
+				reset();
+				gameState = GameState.SETUP;
+				mainButton.setText("Start");
+				scanner = new Scanner(Sudoku.this);
+				scanner.init(gameData);
+			}
+		}
+		
+		clean.addClickHandler(new Handler(Games.empty));
+		easy.addClickHandler(new Handler(Games.easy));
+		normal.addClickHandler(new Handler(Games.normal));
+		hard.addClickHandler(new Handler(Games.advanced));
+		
+		menu.add(clean);
+		menu.add(easy);
+		menu.add(normal);
+		menu.add(hard);
+		
+		return menu;
+	}
+
+	private void reset() {
+		cpuButton.removeFromParent();
 		for (int i=0; i<9; i++) {
 			for (int j=0; j<9; j++) {
-				String v = scanner.valueOf(i,j);
-				if (!v.isEmpty())
-					boxes[i][j].setValue(v, true);
+				boxes[i][j].setValue("");
+				cf.removeStyleName(i, j, "setup");
+				cf.removeStyleName(i, j, "play");
+				cf.removeStyleName(i, j, "guess");
+				cf.removeStyleName(i, j, "cpu");
 			}
 		}
 	}
 
 	private void createWidgets() {
+		cpuButton();
 		for (int i=0; i<9; i++) {
 			for (int j=0; j<9; j++) {
 				cf.setHeight(i, j, "40px");
@@ -157,14 +202,14 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 	}
 
 	protected Widget cpuButton() {
-		final Button next = new Button("Next (CPU)");
-		next.addClickHandler(new ClickHandler() {
+		cpuButton = new Button("Next (CPU)");
+		cpuButton.addClickHandler(new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
 				scanner.next();
 			}
 		});
-		return next;
+		return cpuButton;
 	}
 
 	@Override

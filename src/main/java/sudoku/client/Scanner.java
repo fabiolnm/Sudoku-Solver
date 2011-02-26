@@ -1,6 +1,5 @@
 package sudoku.client;
 
-import com.google.gwt.core.client.GWT;
 
 public class Scanner {
 	public interface SudokuView {
@@ -28,13 +27,9 @@ public class Scanner {
 	}
 	
 	public void init(String[][] values) {
-		for (int i=0; i<9; i++) {
-			for (int j=0; j<9; j++) {
-				String v = values[i][j];
-				if (!v.isEmpty())
-					update(i, j, v);
-			}
-		}
+		for (int i=0; i<9; i++)
+			for (int j=0; j<9; j++)
+				update(i, j, values[i][j]);
 	}
 	
 	public String valueOf(int i, int j) {
@@ -56,16 +51,10 @@ public class Scanner {
 		boolean valid = states[i][j].isValid(value);
 		if (valid) {
 			for (int k=0; valid && k<9; k++) {
-				if (j!=k) {
-					State s = states[i][k];
-					GWT.log(i + "," + k + ": " + s.getValue() + ", " + s);
+				if (j!=k)
 					valid = states[i][k].canRemoveCandidate(value);
-				}
-				if (valid && i!=k) {
-					State s = states[k][j];
-					GWT.log(k + "," + j + ": " + s.getValue() + ", " + s);
+				if (valid && i!=k)
 					valid = states[k][j].canRemoveCandidate(value);
-				}
 			}
 			if (valid) {
 				for (int m=h*3; valid && m<3*(h+1); m++)
