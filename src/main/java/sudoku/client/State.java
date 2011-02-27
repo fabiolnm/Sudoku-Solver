@@ -8,7 +8,8 @@ public class State {
 	private Integer x, y;
 	private String value = "";
 	private TreeSet<String> candidates;
-	
+	private State[] horizontalNeighboors, verticalNeighboors, sectorNeighboors;
+
 	public State(int x, int y) {
 		this.x = x;
 		this.y = y;
@@ -78,5 +79,41 @@ public class State {
 	}
 	public Integer getY() {
 		return y;
+	}
+
+	public void setNeighborhood(
+			State[] horizontalNeighboors,
+			State[] verticalNeighboors, 
+			State[] sectorNeighboors) {
+		this.horizontalNeighboors = horizontalNeighboors;
+		this.verticalNeighboors = verticalNeighboors;
+		this.sectorNeighboors = sectorNeighboors;
+	}
+
+	public State horizontalConflict(String value) {
+		return conflictingState(value, horizontalNeighboors);
+	}
+	public State verticalConflict(String value) {
+		return conflictingState(value, verticalNeighboors);
+	}
+	public State sectorialConflict(String value) {
+		return conflictingState(value, sectorNeighboors);
+	}
+	
+	private State conflictingState(String value, State[] neighboors) {
+		for (State s : neighboors)
+			if (!s.canRemoveCandidate(value))
+				return s;
+		return null;
+	}
+	
+	public State[] getHorizontalNeighboors() {
+		return horizontalNeighboors;
+	}
+	public State[] getVerticalNeighboors() {
+		return verticalNeighboors;
+	}
+	public State[] getSectorNeighboors() {
+		return sectorNeighboors;
 	}
 }

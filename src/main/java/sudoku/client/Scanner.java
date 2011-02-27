@@ -25,6 +25,13 @@ public class Scanner {
 		for (int i=0; i<9; i++)
 			for (int j=0; j<9; j++)
 				states[i][j] = new State(i,j);
+		
+		for (int i=0; i<9; i++) {
+			for (int j=0; j<9; j++) {
+				State s = states[i][j];
+				s.setNeighborhood(horizontalNeighboors(s), verticalNeighboors(s), sectorNeighboors(s));
+			}
+		}
 	}
 	
 	public void init(String[][] values) {
@@ -76,35 +83,22 @@ public class Scanner {
 					res[c++] = states[i][j];
 		return res;
 	}
-
-	private State conflictingState(String value, State[] neighboors) {
-		for (State s : neighboors)
-			if (!s.canRemoveCandidate(value))
-				return s;
-		return null;
-	}
 	
 	private void setState(State s, String value) {
-		State[] foo = new State[0], 
-			horizontal = foo, vertical = foo, sectorial = foo; 
-		
 		String msg = "Movimento Inválido. Causa: ";
 		boolean valid = s.isValid(value);
 		if (!valid)
 			msg += "Valor inválido para a célula.";
 		else {
-			horizontal = horizontalNeighboors(s);
-			State conflict = conflictingState(value, horizontal);
+			State conflict = s.horizontalConflict(value);
 			if (conflict!=null)
 				msg += "Não pode remover valor " + value + " do vizinho horizontal " + conflict;
 			else {
-				vertical = verticalNeighboors(s);
-				conflict = conflictingState(value, vertical);
+				conflict = s.verticalConflict(value);
 				if (conflict!=null)
 					msg += "Não pode remover valor " + value + " do vizinho vertical " + conflict;
 				else {
-					sectorial = sectorNeighboors(s);
-					conflict = conflictingState(value, sectorial);
+					conflict = s.sectorialConflict(value);
 					if (conflict!=null)
 						msg += "Não pode remover valor " + value + " do vizinho setorial " + conflict;
 				}
@@ -116,13 +110,13 @@ public class Scanner {
 			throw new Error(msg);
 		}
 		
-		for (State h : horizontal)
+		for (State h : s.getHorizontalNeighboors())
 			view.showCandidates(h.getX(), h.getY(), h.removeCandidate(value));
 
-		for (State v : vertical)
+		for (State v : s.getVerticalNeighboors())
 			view.showCandidates(v.getX(), v.getY(), v.removeCandidate(value));
 
-		for (State ss : sectorial)
+		for (State ss : s.getSectorNeighboors())
 			view.showCandidates(ss.getX(), ss.getY(), ss.removeCandidate(value));
 
 		view.setValue(s.getX(), s.getY(), value);
@@ -172,8 +166,9 @@ public class Scanner {
 	protected void next() {
 		int startX = x, startY = y;
 		while(true) {
-			if (states[x][y].resolveSingleState()) {
-				view.cpuGuess(x, y, states[x][y].getValue(), "single");
+			State s = states[x][y];
+			if (s.resolveSingleState()) {
+				view.cpuGuess(x, y, s.getValue(), "single");
 				break;
 			}
 			
