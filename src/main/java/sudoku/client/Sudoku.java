@@ -27,6 +27,7 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 		GWT.setUncaughtExceptionHandler(new UncaughtExceptionHandler() {
 			@Override
 			public void onUncaughtException(Throwable e) {
+				GWT.log("Error", e);
 				Throwable cause = ((UmbrellaException) e).getCause().getCause();
 				Window.alert(cause.getMessage());
 			}
@@ -37,7 +38,7 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 	private CellFormatter cf = grid.getCellFormatter();
 	private TextBox[][] boxes = new TextBox[9][9];
 	private Label[][] labels = new Label[9][9];
-	private boolean cpu;
+	private String cpuGuess;
 
 	private Scanner scanner = new Scanner(this);
 	
@@ -140,7 +141,8 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 				cf.removeStyleName(i, j, "setup");
 				cf.removeStyleName(i, j, "play");
 				cf.removeStyleName(i, j, "guess");
-				cf.removeStyleName(i, j, "cpu");
+				cf.removeStyleName(i, j, "single");
+				cf.removeStyleName(i, j, "subtract");
 			}
 		}
 	}
@@ -167,7 +169,7 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 							event.preventDefault();
 							event.stopPropagation();
 						}
-						cpu = false;
+						cpuGuess = null;
 					}
 				});
 				box.addValueChangeHandler(new ValueChangeHandler<String>() {
@@ -235,17 +237,18 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 			bg = "setup";
 		else if (gameState==GameState.GUESSING)
 			bg = "guess";
-		else if (cpu)
-			bg = "cpu";
+		else if (cpuGuess!=null)
+			bg = cpuGuess;
 		else bg = "play";
 		return bg;
 	}
 
 	@Override
-	public void clearState(int i, int j) {
+	public void resetState(int i, int j) {
 		labels[i][j].setVisible(true);
 		grid.getCellFormatter().removeStyleName(i, j, "setup");
-		grid.getCellFormatter().removeStyleName(i, j, "cpu");
+		grid.getCellFormatter().removeStyleName(i, j, "single");
+		grid.getCellFormatter().removeStyleName(i, j, "subtract");
 		grid.getCellFormatter().removeStyleName(i, j, "guess");
 		grid.getCellFormatter().removeStyleName(i, j, "play");
 		
@@ -254,8 +257,8 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 	}
 
 	@Override
-	public void cpuGuess(int i, int j, String value) {
-		cpu = true;
+	public void cpuGuess(int i, int j, String value, String type) {
+		cpuGuess = type;
 		boxes[i][j].setValue(value, true);
 	}
 }

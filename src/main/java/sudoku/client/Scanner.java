@@ -1,6 +1,7 @@
 package sudoku.client;
 
 
+
 public class Scanner {
 	public interface SudokuView {
 		void clearValue(int i, int j);
@@ -9,9 +10,9 @@ public class Scanner {
 
 		void setValue(int i, int j, String value);
 
-		void clearState(int i, int j);
+		void resetState(int i, int j);
 
-		void cpuGuess(int x, int y, String value);
+		void cpuGuess(int x, int y, String value, String type);
 	}
 	
 	private final SudokuView view;
@@ -23,7 +24,7 @@ public class Scanner {
 		this.view = view;
 		for (int i=0; i<9; i++)
 			for (int j=0; j<9; j++)
-				states[i][j] = new State();
+				states[i][j] = new State(i,j);
 	}
 	
 	public void init(String[][] values) {
@@ -32,111 +33,147 @@ public class Scanner {
 				update(i, j, values[i][j]);
 	}
 	
-	public String valueOf(int i, int j) {
-		return states[i][j].getValue();
-	}
-
 	public boolean isEmpty(int i, int j) {
 		return states[i][j].getValue().isEmpty();
 	}
 
 	protected void update(int i, int j, String value) {
+		update(states[i][j], value);
+	}
+	
+	protected void update(State s, String value) {
 		if (value.isEmpty()) 
-			restoreCandidates(i,j);
-		else setState(i,j,value);
+			restoreCandidates(s);
+		else setState(s,value);
+	}
+	
+	private State[] horizontalNeighboors(State s) {
+		State[] res = new State[8];
+		int x = s.getX(), y = s.getY();
+		for (int n=0, k=0; k<9; k++)
+			if (k!=y)
+				res[n++] = states[x][k];
+		return res;
 	}
 
-	private void setState(int i, int j, String value) {
-		int h = i/3, v = j/3;
-		boolean valid = states[i][j].isValid(value);
-		if (valid) {
-			for (int k=0; valid && k<9; k++) {
-				if (j!=k)
-					valid = states[i][k].canRemoveCandidate(value);
-				if (valid && i!=k)
-					valid = states[k][j].canRemoveCandidate(value);
+	private State[] verticalNeighboors(State s) {
+		State[] res = new State[8];
+		int x = s.getX(), y = s.getY();
+		for (int n=0, k=0; k<9; k++)
+			if (k!=x)
+				res[n++] = states[k][y];
+		return res;
+	}
+
+	private State[] sectorNeighboors(State s) {
+		State[] res = new State[8];
+		int x = s.getX(), y = s.getY();
+		int h = x/3, v = y/3, c = 0;
+		int h1 = h*3, h2 = h1+3, v1 = v*3, v2 = v1+3;
+		for (int i=h1; i<h2; i++)
+			for (int j=v1; j<v2; j++)
+				if (x!=i || y!=j)
+					res[c++] = states[i][j];
+		return res;
+	}
+
+	private State conflictingState(String value, State[] neighboors) {
+		for (State s : neighboors)
+			if (!s.canRemoveCandidate(value))
+				return s;
+		return null;
+	}
+	
+	private void setState(State s, String value) {
+		State[] foo = new State[0], 
+			horizontal = foo, vertical = foo, sectorial = foo; 
+		
+		String msg = "Movimento Inválido. Causa: ";
+		boolean valid = s.isValid(value);
+		if (!valid)
+			msg += "Valor inválido para a célula.";
+		else {
+			horizontal = horizontalNeighboors(s);
+			State conflict = conflictingState(value, horizontal);
+			if (conflict!=null)
+				msg += "Não pode remover valor " + value + " do vizinho horizontal " + conflict;
+			else {
+				vertical = verticalNeighboors(s);
+				conflict = conflictingState(value, vertical);
+				if (conflict!=null)
+					msg += "Não pode remover valor " + value + " do vizinho vertical " + conflict;
+				else {
+					sectorial = sectorNeighboors(s);
+					conflict = conflictingState(value, sectorial);
+					if (conflict!=null)
+						msg += "Não pode remover valor " + value + " do vizinho setorial " + conflict;
+				}
 			}
-			if (valid) {
-				for (int m=h*3; valid && m<3*(h+1); m++)
-					for (int n=v*3; valid && n<3*(v+1); n++)
-						if (i!=m && j!=n)
-							valid = states[m][n].canRemoveCandidate(value);
-			}
+			valid = conflict==null;
 		}
 		if (!valid) {
-			view.clearValue(i,j);
-			throw new Error("Movimento Inválido");
+			view.clearValue(s.getX(), s.getY());
+			throw new Error(msg);
 		}
 		
-		states[i][j].setValue(value);
-		
-		for (int k=0; k<9; k++) {
-			if (j!=k)
-				view.showCandidates(i, k, states[i][k].removeCandidate(value));
-			if (i!=k)
-				view.showCandidates(k, j, states[k][j].removeCandidate(value));
-		}
-		for (int m=h*3; m<3*(h+1); m++)
-			for (int n=v*3; n<3*(v+1); n++)
-				if (i!=m && j!=n)
-					view.showCandidates(m, n, states[m][n].removeCandidate(value));
+		for (State h : horizontal)
+			view.showCandidates(h.getX(), h.getY(), h.removeCandidate(value));
 
-		view.setValue(i,j,value);
+		for (State v : vertical)
+			view.showCandidates(v.getX(), v.getY(), v.removeCandidate(value));
+
+		for (State ss : sectorial)
+			view.showCandidates(ss.getX(), ss.getY(), ss.removeCandidate(value));
+
+		view.setValue(s.getX(), s.getY(), value);
+		s.setValue(value);
 	}
 
-	private void restoreCandidates(int i, int j) {
-		String value = valueOf(i,j);
-		
-		// update itself
-		states[i][j].setValue("");
-		view.clearState(i, j);
+	private void restoreCandidates(State s) {
+		view.resetState(s.getX(), s.getY());
+		String valueToRestore = s.getValue();
+		s.setValue(""); // update itself
 
 		// update neighbors
-		for (int k=0; k<9; k++) {
-			if (!inNeighborhood(i, k, value))
-				states[i][k].addCandidate(value);
-			
-			view.showCandidates(i, k, states[i][k].toString());
-			
-			if (!inNeighborhood(k, j, value))
-				states[k][j].addCandidate(value);
-			
-			view.showCandidates(k, j, states[k][j].toString());
+		for (State h : horizontalNeighboors(s)) {
+			if (!inNeighborhood(h, valueToRestore))
+				h.addCandidate(valueToRestore);
+			view.showCandidates(h.getX(), h.getY(), h.candidatesString());
 		}
-		int h = i/3, v = j/3;
-		for (int m=h*3; m<3*(h+1); m++) {
-			for (int n=v*3; n<3*(v+1); n++) {
-				if (!inNeighborhood(m, n, value))
-					states[m][n].addCandidate(value);
-				
-				view.showCandidates(m, n, states[m][n].toString());
-			}
+		for (State v : verticalNeighboors(s)) {
+			if (!inNeighborhood(v, valueToRestore))
+				v.addCandidate(valueToRestore);
+			view.showCandidates(v.getX(), v.getY(), v.candidatesString());
+		}
+		for (State ss : sectorNeighboors(s)) {
+			if (!inNeighborhood(ss, valueToRestore))
+				ss.addCandidate(valueToRestore);
+			view.showCandidates(ss.getX(), ss.getY(), ss.candidatesString());
 		}
 	}
 
-	private boolean inNeighborhood(int i, int j, String value) {
-		for (int k=0; k<9; k++) {
-			if (k!=j)
-				if (states[i][k].getValue().equals(value))
+	private boolean inNeighborhood(State s, String value) {
+		if (!value.isEmpty()) {
+			for (State h : horizontalNeighboors(s))
+				if (h.getValue().equals(value))
 					return true;
-			if (k!=i)
-				if (states[k][j].getValue().equals(value))
+			
+			for (State v : verticalNeighboors(s))
+				if (v.getValue().equals(value))
+					return true;
+	
+			for (State ss : sectorNeighboors(s))
+				if (ss.getValue().equals(value))
 					return true;
 		}
-		int h = i/3, v = j/3;
-		for (int m=h*3; m<3*(h+1); m++)
-			for (int n=v*3; n<3*(v+1); n++)
-				if (m!=i && n!=j)
-					if (states[m][n].getValue().equals(value))
-						return true;
 		return false;
 	}
 	
 	protected void next() {
 		int startX = x, startY = y;
 		while(true) {
-			if (states[x][y].resolve()) {
-				view.cpuGuess(x, y, states[x][y].getValue());
+			if (states[x][y].resolveSingleState()) {
+				view.cpuGuess(x, y, states[x][y].getValue(), "single");
 				break;
 			}
 			
