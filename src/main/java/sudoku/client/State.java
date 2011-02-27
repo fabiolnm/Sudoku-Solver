@@ -116,4 +116,21 @@ public class State {
 	public State[] getSectorNeighboors() {
 		return sectorNeighboors;
 	}
+	
+	public boolean inNeighborhood(String value) {
+		if (!value.isEmpty()) {
+			for (State h : horizontalNeighboors)
+				if (h.getValue().equals(value))
+					return true;
+			
+			for (State v : verticalNeighboors)
+				if (v.getValue().equals(value))
+					return true;
+	
+			for (State ss : sectorNeighboors)
+				if (ss.getValue().equals(value))
+					return true;
+		}
+		return false;
+	}
 }

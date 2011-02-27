@@ -123,46 +123,29 @@ public class Scanner {
 		s.setValue(value);
 	}
 
-	private void restoreCandidates(State s) {
-		view.resetState(s.getX(), s.getY());
-		String valueToRestore = s.getValue();
-		s.setValue(""); // update itself
+	private void restoreCandidates(State state) {
+		view.resetState(state.getX(), state.getY());
+		String valueToRestore = state.getValue();
+		state.setValue(""); // update itself
 
 		// update neighbors
-		for (State h : horizontalNeighboors(s)) {
-			if (!inNeighborhood(h, valueToRestore))
-				h.addCandidate(valueToRestore);
-			view.showCandidates(h.getX(), h.getY(), h.candidatesString());
+		for (State s : state.getHorizontalNeighboors()) {
+			if (!s.inNeighborhood(valueToRestore))
+				s.addCandidate(valueToRestore);
+			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
 		}
-		for (State v : verticalNeighboors(s)) {
-			if (!inNeighborhood(v, valueToRestore))
-				v.addCandidate(valueToRestore);
-			view.showCandidates(v.getX(), v.getY(), v.candidatesString());
+		for (State s : state.getVerticalNeighboors()) {
+			if (!s.inNeighborhood(valueToRestore))
+				s.addCandidate(valueToRestore);
+			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
 		}
-		for (State ss : sectorNeighboors(s)) {
-			if (!inNeighborhood(ss, valueToRestore))
-				ss.addCandidate(valueToRestore);
-			view.showCandidates(ss.getX(), ss.getY(), ss.candidatesString());
+		for (State s : state.getSectorNeighboors()) {
+			if (!s.inNeighborhood(valueToRestore))
+				s.addCandidate(valueToRestore);
+			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
 		}
 	}
 
-	private boolean inNeighborhood(State s, String value) {
-		if (!value.isEmpty()) {
-			for (State h : horizontalNeighboors(s))
-				if (h.getValue().equals(value))
-					return true;
-			
-			for (State v : verticalNeighboors(s))
-				if (v.getValue().equals(value))
-					return true;
-	
-			for (State ss : sectorNeighboors(s))
-				if (ss.getValue().equals(value))
-					return true;
-		}
-		return false;
-	}
-	
 	protected void next() {
 		int startX = x, startY = y;
 		while(true) {
