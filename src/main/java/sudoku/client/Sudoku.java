@@ -69,7 +69,7 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 						for (int j=0; j<9; j++)
 							if (!scanner.isEmpty(i,j))
 								boxes[i][j].setEnabled(false);
-
+					
 					gameState = GameState.PLAYING;
 					mainButton.setText("Click to start Guessing");
 					RootPanel.get().add(cpuButton);
@@ -136,6 +136,7 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 		for (int i=0; i<9; i++) {
 			for (int j=0; j<9; j++) {
 				boxes[i][j].setValue("");
+				boxes[i][j].setEnabled(true);
 				cf.removeStyleName(i, j, "setup");
 				cf.removeStyleName(i, j, "play");
 				cf.removeStyleName(i, j, "guess");
