@@ -1,7 +1,7 @@
 package sudoku.client;
 
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.HashSet;
 import java.util.TreeSet;
 
 public class State {
@@ -16,26 +16,71 @@ public class State {
 		candidates = new TreeSet<String>(Arrays.asList("1","2","3","4","5","6","7","8","9"));
 	}
 
-	private State(Collection<String> candidates) {
-		candidates = new TreeSet<String>(candidates);
-	}
-
 	public String getValue() {
 		return value;
 	}
-	public void setValue(String value) {
-		this.value = value;
+	public void setValue(String newValue) {
+		if (newValue.isEmpty()) {
+			// must update state before addCandidate calls
+			String oldValue = value;
+			this.value = newValue;
+			for (State s : horizontalNeighboors)
+				if (!s.inNeighborhood(oldValue))
+					s.addCandidate(oldValue);
+			for (State s : verticalNeighboors)
+				if (!s.inNeighborhood(oldValue))
+					s.addCandidate(oldValue);
+			for (State s : sectorNeighboors)
+				if (!s.inNeighborhood(oldValue))
+					s.addCandidate(oldValue);
+		}
+		else {
+			validate(newValue);
+			// only update after validation
+			this.value = newValue;
+			for (State s : horizontalNeighboors)
+				s.removeCandidate(newValue);
+			for (State s : verticalNeighboors)
+				s.removeCandidate(newValue);
+			for (State s : sectorNeighboors)
+				s.removeCandidate(newValue);
+		}
 	}
 	
+	private void validate(String value) {
+		String msg = "Movimento Inválido. Causa: ";
+		boolean valid = isValid(value);
+		if (!valid)
+			msg += "Valor inválido para a célula " + this;
+		else {
+			State conflict = hasHorizontalConflict(value);
+			if (conflict!=null)
+				msg += "Não pode remover valor " + value + " do vizinho horizontal " + conflict;
+			else {
+				conflict = hasVerticalConflict(value);
+				if (conflict!=null)
+					msg += "Não pode remover valor " + value + " do vizinho vertical " + conflict;
+				else {
+					conflict = hasSectorialConflict(value);
+					if (conflict!=null)
+						msg += "Não pode remover valor " + value + " do vizinho setorial " + conflict;
+				}
+			}
+			valid = conflict==null;
+		}
+		if (!valid)
+			throw new Error(msg);
+	}
+
 	public void addCandidate(String value) {
-		if (value.matches("[^1-9]"))
+		if (value.matches("[1-9]"))
 			candidates.add(value);
 	}
 	
 	public String candidatesString() {
 		return candidates.toString();
 	}
-	public String removeCandidate(String value) {
+	private String removeCandidate(String value) {
 		candidates.remove(value);
 		return candidates.toString();
 	}
@@ -45,7 +90,7 @@ public class State {
 		return "[" + x + "," + y + "] " + candidates.toString();
 	}
 
-	public boolean isValid(String value) {
+	private boolean isValid(String value) {
 		return candidates.contains(value);
 	}
 	public boolean isEmpty() {
@@ -64,16 +109,6 @@ public class State {
 		return false;
 	}
 
-	public State copy() {
-		return new State(candidates);
-	}
-	
-	public State subtractCandidates(State s) {
-		State res = new State(candidates);
-		res.candidates.removeAll(s.candidates);
-		return res;
-	}
-	
 	public Integer getX() {
 		return x;
 	}
@@ -90,13 +125,13 @@ public class State {
 		this.sectorNeighboors = sectorNeighboors;
 	}
 
-	public State horizontalConflict(String value) {
+	public State hasHorizontalConflict(String value) {
 		return conflictingState(value, horizontalNeighboors);
 	}
-	public State verticalConflict(String value) {
+	public State hasVerticalConflict(String value) {
 		return conflictingState(value, verticalNeighboors);
 	}
-	public State sectorialConflict(String value) {
+	public State hasSectorialConflict(String value) {
 		return conflictingState(value, sectorNeighboors);
 	}
 	
@@ -117,19 +152,47 @@ public class State {
 		return sectorNeighboors;
 	}
 	
-	public boolean inNeighborhood(String value) {
+	private boolean inNeighborhood(String value) {
 		if (!value.isEmpty()) {
-			for (State h : horizontalNeighboors)
-				if (h.getValue().equals(value))
+			for (State s : horizontalNeighboors)
+				if (s.getValue().equals(value))
 					return true;
 			
-			for (State v : verticalNeighboors)
-				if (v.getValue().equals(value))
+			for (State s : verticalNeighboors)
+				if (s.getValue().equals(value))
 					return true;
 	
-			for (State ss : sectorNeighboors)
-				if (ss.getValue().equals(value))
+			for (State s : sectorNeighboors)
+				if (s.getValue().equals(value))
 					return true;
+		}
+		return false;
+	}
+
+	public boolean resolveSubtractingState() {
+		if (value.isEmpty()) {
+			if (resolveSubtractingState(horizontalNeighboors))
+				return true;
+			if (resolveSubtractingState(verticalNeighboors))
+				return true;
+			if (resolveSubtractingState(sectorNeighboors))
+				return true;
+		}
+		return false;
+	}
+
+	private boolean resolveSubtractingState(State[] neighboors) {
+		HashSet<String> candidates = new HashSet<String>(this.candidates);
+		for (State s : neighboors) {
+			if (s.value.isEmpty()) {
+				candidates.removeAll(s.candidates);
+				if (candidates.size()==0)
+					return false;
+			}
+		}
+		if (candidates.size()==1) {
+			setValue(candidates.iterator().next());
+			return true;
 		}
 		return false;
 	}

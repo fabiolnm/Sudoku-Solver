@@ -1,16 +1,10 @@
 package sudoku.client;
 
-
-
 public class Scanner {
 	public interface SudokuView {
-		void clearValue(int i, int j);
-
 		void showCandidates(int i, int j, String candidates);
 
 		void setValue(int i, int j, String value);
-
-		void resetState(int i, int j);
 
 		void cpuGuess(int x, int y, String value, String type);
 	}
@@ -34,24 +28,29 @@ public class Scanner {
 		}
 	}
 	
+	public boolean isEmpty(int i, int j) {
+		return states[i][j].getValue().isEmpty();
+	}
+
 	public void init(String[][] values) {
 		for (int i=0; i<9; i++)
 			for (int j=0; j<9; j++)
 				update(i, j, values[i][j]);
 	}
 	
-	public boolean isEmpty(int i, int j) {
-		return states[i][j].getValue().isEmpty();
-	}
+	public void update(int i, int j, String value) {
+		State state = states[i][j];
+		state.setValue(value);
+		view.setValue(state.getX(), state.getY(), value);
+		
+		for (State s : state.getHorizontalNeighboors())
+			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
 
-	protected void update(int i, int j, String value) {
-		update(states[i][j], value);
-	}
-	
-	protected void update(State s, String value) {
-		if (value.isEmpty()) 
-			restoreCandidates(s);
-		else setState(s,value);
+		for (State s : state.getVerticalNeighboors())
+			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
+
+		for (State s : state.getSectorNeighboors())
+			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
 	}
 	
 	private State[] horizontalNeighboors(State s) {
@@ -84,83 +83,41 @@ public class Scanner {
 		return res;
 	}
 	
-	private void setState(State s, String value) {
-		String msg = "Movimento Inválido. Causa: ";
-		boolean valid = s.isValid(value);
-		if (!valid)
-			msg += "Valor inválido para a célula.";
-		else {
-			State conflict = s.horizontalConflict(value);
-			if (conflict!=null)
-				msg += "Não pode remover valor " + value + " do vizinho horizontal " + conflict;
-			else {
-				conflict = s.verticalConflict(value);
-				if (conflict!=null)
-					msg += "Não pode remover valor " + value + " do vizinho vertical " + conflict;
-				else {
-					conflict = s.sectorialConflict(value);
-					if (conflict!=null)
-						msg += "Não pode remover valor " + value + " do vizinho setorial " + conflict;
-				}
-			}
-			valid = conflict==null;
-		}
-		if (!valid) {
-			view.clearValue(s.getX(), s.getY());
-			throw new Error(msg);
-		}
-		
-		for (State h : s.getHorizontalNeighboors())
-			view.showCandidates(h.getX(), h.getY(), h.removeCandidate(value));
-
-		for (State v : s.getVerticalNeighboors())
-			view.showCandidates(v.getX(), v.getY(), v.removeCandidate(value));
-
-		for (State ss : s.getSectorNeighboors())
-			view.showCandidates(ss.getX(), ss.getY(), ss.removeCandidate(value));
-
-		view.setValue(s.getX(), s.getY(), value);
-		s.setValue(value);
-	}
-
-	private void restoreCandidates(State state) {
-		view.resetState(state.getX(), state.getY());
-		String valueToRestore = state.getValue();
-		state.setValue(""); // update itself
-
-		// update neighbors
-		for (State s : state.getHorizontalNeighboors()) {
-			if (!s.inNeighborhood(valueToRestore))
-				s.addCandidate(valueToRestore);
-			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
-		}
-		for (State s : state.getVerticalNeighboors()) {
-			if (!s.inNeighborhood(valueToRestore))
-				s.addCandidate(valueToRestore);
-			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
-		}
-		for (State s : state.getSectorNeighboors()) {
-			if (!s.inNeighborhood(valueToRestore))
-				s.addCandidate(valueToRestore);
-			view.showCandidates(s.getX(), s.getY(), s.candidatesString());
-		}
-	}
-
 	protected void next() {
+		if (resolveSingleState())
+			next();
+		else if (resolveSubtractionState())
+			next();
+	}
+
+	protected boolean resolveSingleState() {
 		int startX = x, startY = y;
-		while(true) {
+		do {
 			State s = states[x][y];
 			if (s.resolveSingleState()) {
 				view.cpuGuess(x, y, s.getValue(), "single");
-				break;
+				return true;
 			}
-			
-			y = ++y%9;
-			if (y==0)
-				x = ++x%9;
-			
-			if (x==startX && y==startY)
-				break;
-		}
+		} while(continueScan(startX, startY));
+		return false;
+	}
+
+	private boolean resolveSubtractionState() {
+		int startX = x, startY = y;
+		do {
+			State s = states[x][y];
+			if (s.resolveSubtractingState()) {
+				view.cpuGuess(x, y, s.getValue(), "subtract");
+				return true;
+			}
+		} while(continueScan(startX, startY));
+		return false;
+	}
+	
+	private boolean continueScan(int startX, int startY) {
+		y = ++y%9;
+		if (y==0)
+			x = ++x%9;
+		return x!=startX || y!=startY;
 	}
 }

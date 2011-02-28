@@ -72,8 +72,8 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 								boxes[i][j].setEnabled(false);
 					
 					gameState = GameState.PLAYING;
+					cpuButton.setVisible(true);
 					mainButton.setText("Click to start Guessing");
-					RootPanel.get().add(cpuButton);
 				} else if (gameState==GameState.PLAYING) {
 					gameState = GameState.GUESSING;
 					mainButton.setText("Stop Guessing");
@@ -92,6 +92,7 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 				}
 			}
 		});
+		RootPanel.get().add(cpuButton);
 		RootPanel.get().add(mainButton);
 	}
 
@@ -133,7 +134,7 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 	}
 
 	private void reset() {
-		cpuButton.removeFromParent();
+		cpuButton.setVisible(false);
 		for (int i=0; i<9; i++) {
 			for (int j=0; j<9; j++) {
 				boxes[i][j].setValue("");
@@ -206,6 +207,7 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 
 	protected Widget cpuButton() {
 		cpuButton = new Button("Next (CPU)");
+		cpuButton.setVisible(false);
 		cpuButton.addClickHandler(new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
@@ -216,11 +218,6 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 	}
 
 	@Override
-	public void clearValue(int i, int j) {
-		boxes[i][j].setValue("");
-	}
-
-	@Override
 	public void showCandidates(int i, int j, String candidates) {
 		labels[i][j].setText(candidates);
 	}
@@ -228,7 +225,19 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 	@Override
 	public void setValue(int i, int j, String value) {
 		boxes[i][j].setValue(value);
-		grid.getCellFormatter().addStyleName(i, j, background());
+		if (!value.isEmpty())
+			grid.getCellFormatter().addStyleName(i, j, background());
+		else {
+			labels[i][j].setVisible(true);
+			grid.getCellFormatter().removeStyleName(i, j, "setup");
+			grid.getCellFormatter().removeStyleName(i, j, "single");
+			grid.getCellFormatter().removeStyleName(i, j, "subtract");
+			grid.getCellFormatter().removeStyleName(i, j, "guess");
+			grid.getCellFormatter().removeStyleName(i, j, "play");
+			
+			if (gameState!=GameState.SETUP)
+				boxes[i][j].setEnabled(true);
+		}
 	}
 	
 	private String background() {
@@ -241,19 +250,6 @@ public class Sudoku implements EntryPoint, Scanner.SudokuView {
 			bg = cpuGuess;
 		else bg = "play";
 		return bg;
-	}
-
-	@Override
-	public void resetState(int i, int j) {
-		labels[i][j].setVisible(true);
-		grid.getCellFormatter().removeStyleName(i, j, "setup");
-		grid.getCellFormatter().removeStyleName(i, j, "single");
-		grid.getCellFormatter().removeStyleName(i, j, "subtract");
-		grid.getCellFormatter().removeStyleName(i, j, "guess");
-		grid.getCellFormatter().removeStyleName(i, j, "play");
-		
-		if (gameState!=GameState.SETUP)
-			boxes[i][j].setEnabled(true);
 	}
 
 	@Override
